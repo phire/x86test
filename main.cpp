@@ -112,9 +112,9 @@ void conversion_tests_inner(x87 &fpu_a, x87 &fpu_b) {
     {
         FilteredSequence<tword, 10'000'000> happy_long_floats([] (tword f) {
             bool is_denormal = (f.significand & tword::interger_bit_mask) == 0; // already denormal
-            bool fits_in_T   = ((tword::exponent_bias - f.exponent) + T::exponent_bias) < 0; // will become denormal
+            bool fits_in_T   = ((f.exponent - tword::exponent_bias) + T::exponent_bias) >= 0; // will become denormal
             bool is_real     = f.exponent != tword::exponent_max; // not infinity or nand
-            return is_real && !is_denormal; // FIXME: && fits_in_T;
+            return is_real && !is_denormal && fits_in_T;
         });
 
         // happy path for 80bit to 32bit/64bit conversions (includes rounding)
@@ -181,9 +181,49 @@ void conversion_tests_inner(x87 &fpu_a, x87 &fpu_b) {
             store_both(val);
         }
 
+        fmt::print("storing large floats to {}bit...\n", T::bits);
         // large numbers
+        TransformedSequence<tword, 10'000'000> large_floats([] (tword f) {
+            constexpr int min_exponent = T::exponent_max - T::exponent_bias;
+            constexpr int max_exponent = tword::exponent_max - tword::exponent_bias;
+            constexpr int exponent_range = (max_exponent - min_exponent) + 1;
 
+            // Take the tword exponent and force it into T's denormal exponent range with modulus
+            f.exponent = (tword::exponent_bias + min_exponent) + (f.exponent % exponent_range);
+
+            // Force to be an interger
+            f.significand |= tword::interger_bit_mask;
+
+            return f;
+        });
+        for (auto val : large_floats) {
+            store_both(val);
+            fpu_b.fld(val);
+            T result = fpu_b.fstp<T>();
+            assert(result.exponent == T::exponent_max);
+        }
+
+        fmt::print("storing small floats to {}bit...\n", T::bits);
         // small numbers
+        TransformedSequence<tword, 10'000'000> small_floats([] (tword f) {
+            constexpr int min_exponent = -tword::exponent_bias;
+            constexpr int max_exponent = -T::exponent_bias - T::significand_width;
+            constexpr int exponent_range = (max_exponent - min_exponent) + 1;
+
+            // Take the tword exponent and force it into T's denormal exponent range with modulus
+            f.exponent = (tword::exponent_bias + min_exponent) + (f.exponent % exponent_range);
+
+            // Force to be an interger
+            f.significand |= tword::interger_bit_mask;
+
+            return f;
+        });
+        for (auto val : small_floats) {
+            store_both(val);
+            fpu_b.fld(val);
+            T result = fpu_b.fstp<T>();
+            assert(result.exponent == 0);
+        }
     }
 
     // weird unsupported 80bit float encodings
