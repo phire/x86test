@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdint.h>
 #include <string>
 #include <fmt/format.h>
