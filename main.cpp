@@ -2,7 +2,7 @@
 #include <array>
 #include <cassert>
 #include <stdio.h>
-#include <stdint.h>
+
 #include <cstring>
 #include <functional>
 #include <optional>
@@ -10,114 +10,7 @@
 
 #include <fmt/format.h>
 
-
-#pragma pack(1)
-union tword {
-    struct  {
-        uint64_t significand : 64;
-        uint16_t exponent    : 15;
-        uint16_t sign        :  1;
-    };
-    struct {
-        uint64_t hex_low;
-        uint16_t hex_high;
-    };
-
-    // operator long double() {
-    //     long double a;
-    //     memcpy(&a, this, 10);
-    //     return a;
-    // }
-
-    std::string to_string() {
-        uint64_t fraction = significand & 0x7fff'ffff'ffff'ffff;
-        uint64_t interger = significand >> 63;
-        return fmt::format("{}_{:04x}_{}_{:016x}", (int)sign, (int)exponent, interger, fraction);
-    }
-
-    std::string to_hex() {
-        return fmt::format("{:04x}{:016x}", hex_high, hex_low);
-    }
-
-    friend bool operator==(tword const& lhs, tword const& rhs)  {
-        return (lhs.hex_low == rhs.hex_low) && (lhs.hex_high == rhs.hex_high);
-    }
-    friend bool operator!=(tword const& lhs, tword const& rhs) {
-        return (lhs.hex_low != rhs.hex_low) || (lhs.hex_high != rhs.hex_high);
-    }
-};
-static_assert(sizeof(tword) == 10, "wrong tword size");
-
-struct qword {
-    union
-    {
-        struct  {
-            uint64_t significand : 52;
-            uint64_t exponent    : 11;
-            uint64_t sign        :  1;
-
-        };
-        uint64_t hex;
-    };
-
-    static constexpr int significand_width = 52;
-    static constexpr int exponent_width = 11;
-
-    qword() : hex(0) {}
-    qword(double d) {
-        std::memcpy(&hex, &d, sizeof(hex));
-    }
-    operator double() const {
-        double d;
-        std::memcpy(&d, &hex, sizeof(d));
-        return d;
-    }
-
-    std::string to_string() {
-        return fmt::format("{}_{:03x}_{:013x}", (int)sign, (int)exponent, (uint64_t)significand);
-    }
-
-    std::string to_hex() {
-        return fmt::format("{:016x}", hex);
-    }
-};
-static_assert(sizeof(qword) == 8, "wrong qword size");
-
-struct dword {
-    union {
-        struct  {
-            uint32_t significand : 23;
-            uint32_t exponent    :  8;
-            uint32_t sign        :  1;
-
-
-        };
-        uint32_t hex;
-    };
-    static constexpr int significand_width = 23;
-    static constexpr int exponent_width = 8;
-
-    dword() : hex(0) {}
-    dword(float f) {
-        std::memcpy(&hex, &f, sizeof(hex));
-    }
-    operator float() const {
-        float f;
-        std::memcpy(&f, &hex, sizeof(f));
-        return f;
-    }
-
-    std::string to_string() {
-        return fmt::format("{}_{:02x}_{:06x}", (int)sign, (int)exponent, (uint64_t)significand);
-    }
-
-    std::string to_hex() {
-        return fmt::format("{:08x}", hex);
-    }
-};
-static_assert(sizeof(dword) == 4, "wrong dword size");
-#pragma pack()
-
+#include "float_types.h"
 
 // Generic interface for x87 fpu implementations
 class x87 {
