@@ -4,138 +4,14 @@
 #include <stdio.h>
 
 #include <cstring>
-#include <functional>
-#include <optional>
-#include <random>
 
 #include <fmt/format.h>
 
 #include "float_types.h"
 #include "real_x87.h"
 #include "soft_x87.h"
+#include "sequence.h"
 
-// inline long double fadd(long double a, long double b) {
-//     long double ret;
-//     __asm__ volatile ("fldt %0" :: "m"(a));
-//     __asm__ volatile ("fldt %0" :: "m"(b));
-//     __asm__ volatile ("faddp");
-//     __asm__ volatile ("fstpt %0" : "=m"(ret));
-//     return ret;
-// }
-
-// Iterates over a sequence defined by a generator
-template<class T>
-struct sequenceIterator {
-    using iterator_category = std::input_iterator_tag;
-    using value_type = T;
-    using difference_type = void;
-    using pointer = T*;
-    using reference = T&;
-
-    sequenceIterator() {}
-    sequenceIterator(std::function<std::optional<T>()> gen) : generator(gen), current(gen()) { }
-    T operator*() const { return *current; }
-    T* operator->() const { return current.operator->(); }
-    sequenceIterator& operator++() {
-        current = generator();
-        return *this;
-    }
-    friend bool operator==(sequenceIterator const& lhs, sequenceIterator const& rhs) {
-        return lhs.current == rhs.current;
-    }
-    friend bool operator!=(sequenceIterator const& lhs, sequenceIterator const& rhs) {
-        return !(lhs==rhs);
-    }
-
-    struct postinc_return {
-        postinc_return(T value) : value(value) {}
-        T operator*() { return value; }
-    private:
-        T value;
-    };
-    postinc_return operator++(int) {
-        postinc_return ret(*this);
-        ++this;
-        return ret;
-    }
-
-protected:
-    std::optional<T> current;
-    std::function<std::optional<T>()> generator;
-};
-
-
-template<class T, size_t length>
-struct Sequence {
-    sequenceIterator<T> begin() {
-        auto inner_generator = generator;
-        size_t count = 0;
-
-        auto boundedGenerator = [inner_generator,count] () mutable -> std::optional<T> {
-            if (count++ < length) {
-                return inner_generator();
-            }
-            return std::nullopt;
-        };
-
-        return sequenceIterator<T>(boundedGenerator);
-    }
-
-    sequenceIterator<T> end() {
-        return sequenceIterator<T>();
-    }
-
-protected:
-    std::function<T()> generator;
-};
-
-template<class T, size_t length, uint64_t seed=0>
-struct UniformSequence : public Sequence<T, length> {
-    UniformSequence() {
-        std::mt19937_64 rng;
-        rng.seed(seed);
-
-        this->generator = [rng] () mutable -> T {
-            T result;
-            ssize_t remaining_bytes = sizeof(result);
-            char *data = reinterpret_cast<char*>(&result);
-
-            while (remaining_bytes > 0) {
-                uint64_t num = rng();
-                std::memcpy(data, &num, std::min<ssize_t>(remaining_bytes, sizeof(num)));
-                remaining_bytes -= sizeof(num);
-                data += sizeof(num);
-            }
-            return result;
-        };
-    }
-};
-
-template<class T, size_t length, uint64_t seed=0>
-struct FilteredSequence : public UniformSequence<T, length, seed> {
-    FilteredSequence(std::function<bool(T)> filter) : UniformSequence<T, length, seed>() {
-        auto original_generator = this->generator;
-
-        this->generator = [original_generator, filter] () -> T {
-            while (true) {
-                T value = original_generator();
-                if (filter(value))
-                    return value;
-            }
-        };
-    }
-};
-
-template<class T, size_t length, uint64_t seed=0>
-struct TransformedSequence : public UniformSequence<T, length, seed> {
-    TransformedSequence(std::function<T(T)> transformation) : UniformSequence<T, length, seed>() {
-        auto original_generator = this->generator;
-
-        this->generator = [original_generator, transformation] () -> T {
-            return transformation(original_generator());
-        };
-    }
-};
 
 // We run these tests twice, for 32 and 64bit floats
 template<typename T>
@@ -255,27 +131,8 @@ void conversion_tests(x87 &fpu_a, x87 &fpu_b) {
 }
 
 int main() {
-    auto fpu = soft_x87();
     auto soft = soft_x87();
     auto hard = hard_x87();
 
-    fpu.fld(qword(1.0));
-    fpu.fld(qword(1.2));
-    fpu.faddp();
-    qword result = fpu.fstp_l();
-
-    // qword d(1.0);
-    // soft.fld(d);
-    // hard.fld(d);
-    // auto s = soft.fstp_t();
-    // auto h = hard.fstp_t();
-
-    hard.fld(qword(1.0));
-    hard.fld(qword(1.2));
-    hard.faddp();
-    qword hard_result = hard.fstp_l();
-
     conversion_tests(soft, hard);
-
-   //fmt::print("{} {} {}\n", hard_result.to_string(), result.to_string(), (double)result);
 }
