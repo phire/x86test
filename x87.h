@@ -27,4 +27,14 @@ public:
     virtual tword fstp_t() = 0;
     virtual qword fstp_l() = 0;
     virtual dword fstp_s() = 0;
+
+    template<typename T>
+    T fstp() {
+        if constexpr (std::is_same<tword, T>::value)
+            return fstp_t();
+        if constexpr (std::is_same<qword, T>::value)
+            return fstp_l();
+        if constexpr (std::is_same<dword, T>::value)
+            return fstp_s();
+    }
 };

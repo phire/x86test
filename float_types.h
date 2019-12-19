@@ -6,13 +6,14 @@
 
 template<size_t sig_size, size_t exp_size, bool has_int_bit = false, bool has_sign_bit = true>
 struct soft_float {
-    static constexpr size_t total_bits = sig_size + exp_size + size_t(has_sign_bit);
-    static constexpr size_t bytes = total_bits / 8;
+    static constexpr size_t bits = sig_size + exp_size + size_t(has_sign_bit);
+    static constexpr size_t bytes = bits / 8;
 
-    static_assert(total_bits == bytes * 8, "total bits should be multiple of 8");
+    static_assert(bits == bytes * 8, "total bits should be multiple of 8");
 
     static constexpr int significand_width = sig_size;
-    static constexpr uint64_t interger_bit_mask = has_int_bit ? (1ULL < sig_size) : 0;
+    static constexpr uint64_t significand_max = (1ull << sig_size) - 1;
+    static constexpr uint64_t interger_bit_mask = has_int_bit ? (1ull << (significand_width - 1)) : 0;
 
 
     static constexpr int exponent_width = exp_size;
@@ -52,7 +53,7 @@ struct soft_float {
         int sig_pad = (significand_width + 3) / 4;
         int exp_pad = (exponent_width + 3) / 4;
 
-        std::string str = fmt::format("{0}_{1:0{2}x}_", (int)sign, (int)exponent, exp_pad);
+        std::string str = fmt::format("{0}_{1:0{2}x}", (int)sign, (int)exponent, exp_pad);
         if (has_int_bit) {
             uint64_t fraction = significand & ~interger_bit_mask;
             uint64_t interger = significand >> (significand_width - 1);

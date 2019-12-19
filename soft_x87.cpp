@@ -107,20 +107,25 @@ T soft_x87::compress(tword f) {
     T compressed;
     compressed.sign = f.sign;
 
-    int shift = 63 - compressed.significand_width;
-    compressed.significand = (f.significand & 0x7FFFFFFFFFFFFFFF) >> shift;
+    uint64_t significand = f.significand & ~tword::interger_bit_mask;
+    int shift = 63 - T::significand_width;
+
 
     // Handle pre-existing infinity
     int exponent_max = (1 << compressed.exponent_width) - 1;
-    if (f.exponent == 0x7fff && f.significand == 0) {
+    if (f.exponent == tword::exponent_max && f.significand == 0) {
         compressed.significand = 0;
         compressed.exponent = exponent_max;
         return compressed;
     }
 
     // Handle NAN
-    if (f.exponent == 0x7fff) {
+    if (f.exponent == tword::exponent_max) {
         compressed.exponent = exponent_max;
+        if (significand) {
+            significand |= 0x4000'0000'0000'0000; // Force to be quiet
+            compressed.significand = significand >> shift;
+        }
         return compressed;
     }
 
@@ -137,8 +142,8 @@ T soft_x87::compress(tword f) {
     }
 
     // Underflow
-    if (exponent < 0) {
-        if (exponent < -compressed.significand_width) {
+    if (exponent <= 0) {
+        if (exponent < -T::significand_width) {
             // Too big for denormal, underflow to zero
             compressed.significand = 0;
             compressed.exponent = 0;
@@ -146,15 +151,46 @@ T soft_x87::compress(tword f) {
         }
 
         // denormalize
-        uint64_t significand = compressed.significand | (1ULL << compressed.significand_width);
-        while (exponent > 0)
-        {
-            exponent++;
-            significand >>= 1;
-        }
-        compressed.significand = significand;
+        significand |= tword::interger_bit_mask; // restore upper bit
+        // uint64_t rounding = significand & 1;
+        // significand >>= 1;
+        // while (exponent < 0)
+        // {
+        //     exponent++;
+        //     rounding = significand & 1;
+        //     significand >>= 1;
+        // }
+
+        int denormal_shift = (-exponent) + 1;
+        shift += denormal_shift;
+        exponent = 0;
+
     }
 
+    uint64_t rounding;
+    uint64_t rounding_point_five;
+    if (shift == 64) {
+        rounding = significand;
+        rounding_point_five = 1ull << (shift - 1);
+        significand = 0;
+    } else {
+        uint64_t mask = (1ull << shift) - 1;
+        rounding = significand & mask;
+        rounding_point_five = 1ull << (shift - 1);
+        significand = significand >> shift;
+    }
+
+    bool odd = (significand & 1) == 1;
+    if (rounding > rounding_point_five || (rounding == rounding_point_five && odd)) {
+        significand += 1;
+
+        if (significand > T::significand_max) {
+            exponent += 1;
+            significand = 0;
+        }
+    }
+
+    compressed.significand = significand;
     compressed.exponent = exponent;
 
     return compressed;
