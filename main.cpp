@@ -215,5 +215,8 @@ int main() {
     auto soft = soft_x87();
     auto hard = hard_x87();
 
+//    fmt::print("cw: {:x}\n", hard.fstcw());
+    //hard.fldcw(0x033f); // round to nearest; 64T::bits of precision; all exceptions masked.
+
     conversion_tests(soft, hard);
 }

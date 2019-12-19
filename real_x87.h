@@ -40,4 +40,7 @@ public:
     virtual tword fstp_t() { tword ret; __asm__ ("fstpt %0" : "=&m"(ret)); return ret; };
     virtual qword fstp_l() { qword ret; __asm__ ("fstpl %0" : "=&m"(ret)); return ret; };
     virtual dword fstp_s() { dword ret; __asm__ ("fstps %0" : "=&m"(ret)); return ret; };
+
+    virtual uint16_t fstcw() { uint16_t cw; __asm__ ("fstcw %0" : "=&m"(cw)); return cw; }
+    virtual void fldcw(uint16_t cw) {  __asm__ volatile ("fldcw %0" :: "m"(cw)); }
 };
