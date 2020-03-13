@@ -196,6 +196,22 @@ T soft_x87::compress(tword f) {
     return compressed;
 }
 
+tword soft_x87::convert(int64_t i) {
+    if (i == 0) {
+        return {0, 0, 0};
+    }
+
+    tword result;
+
+    result.sign = i < 0;
+    uint64_t absolute = result.sign ? -i : i;
+
+    int shift = __builtin_clzll(absolute);
+    result.exponent = (tword::exponent_bias - shift) + 63;
+    result.significand = absolute << shift;
+    return result;
+}
+
 template tword soft_x87::expand(dword);
 template tword soft_x87::expand(qword);
 

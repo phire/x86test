@@ -32,6 +32,10 @@ public:
     virtual void fld(dword f)  { __asm__ volatile ("flds %0" :: "m"(f)); };
     virtual void fld(int st)   { ST_ASM("fld", st); };
 
+    virtual void fild(int16_t i) { __asm__ volatile ("filds %0" :: "m"(i)); };
+    virtual void fild(int32_t i) { __asm__ volatile ("fildl %0" :: "m"(i)); };
+    virtual void fild(int64_t i) { __asm__ volatile ("fildq %0" :: "m"(i)); };
+
     void fadd()  { fadd(1);  }
     void faddp() { faddp(1); }
     // void fmul()  { fmul(1); }

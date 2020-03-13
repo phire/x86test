@@ -123,10 +123,7 @@ void conversion_tests_inner(x87 &fpu_a, x87 &fpu_b) {
         }
     }
 
-
     // TODO: proper rounding test
-
-
     store_both(tword(1, 0x3f69, 0xcc53702c050d3513));
     store_both(tword(0, 0x3bff, 0x8e65bd8630709000));
     store_both(tword(0, 0x3f80, 0xffffff1fd1ad2bdd));
@@ -157,8 +154,6 @@ void conversion_tests_inner(x87 &fpu_a, x87 &fpu_b) {
             store_both(val);
         }
     }
-
-
 
     // infinities/NaNs/zeros conversions
     {
@@ -251,6 +246,66 @@ void conversion_tests(x87 &fpu_a, x87 &fpu_b) {
     conversion_tests_inner<qword>(fpu_a, fpu_b);
 }
 
+template<typename T>
+void load_int_inner(x87 &fpu_a, x87 &fpu_b) {
+    fmt::print("loading {}bit intergers...\n", sizeof(T) * 8);
+
+
+
+    auto load_both = [&] (T val) {
+        fpu_a.fild(val);
+        fpu_b.fild(val);
+
+        tword a = fpu_a.fstp_t();
+        tword b = fpu_b.fstp_t();
+        if(a != b) {
+            fmt::print("{:x} resulted in {} and {}\n", val, a.to_string(), b.to_string());
+        }
+    };
+
+    std::vector<int64_t> notableInts = {
+        0,
+        1,
+        2,
+        3,
+        4,
+        -1,
+        -2,
+        -3,
+        -4
+        INT16_MAX,
+        INT16_MIN,
+        INT32_MAX,
+        INT32_MIN,
+        INT64_MAX,
+        INT64_MIN,
+        INT16_MAX - 1,
+        INT16_MIN + 1,
+        INT32_MAX - 1,
+        INT32_MIN + 1,
+        INT64_MAX - 1,
+        INT64_MIN + 1,
+    };
+
+    for (int64_t i : notableInts) {
+        load_both(static_cast<T>(i));
+    }
+
+    UniformSequence<T, 2'000'000> random_ints;
+
+    for (T i : random_ints) {
+        load_both(i);
+    }
+
+
+}
+
+void load_int_tests(x87 &fpu_a, x87 &fpu_b) {
+    load_int_inner<int16_t>(fpu_a, fpu_b);
+    load_int_inner<int32_t>(fpu_a, fpu_b);
+    load_int_inner<int64_t>(fpu_a, fpu_b);
+}
+
 int main() {
     auto soft = soft_x87();
     auto hard = hard_x87();
@@ -258,5 +313,5 @@ int main() {
 //    fmt::print("cw: {:x}\n", hard.fstcw());
     //hard.fldcw(0x033f); // round to nearest; 64T::bits of precision; all exceptions masked.
 
-    conversion_tests(soft, hard);
+    load_int_tests(soft, hard);
 }

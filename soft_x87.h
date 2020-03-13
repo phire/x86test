@@ -17,6 +17,8 @@ private:
     template<class T>
     T compress(tword f); // Compresses 80bit floats to 32bit/64bit
 
+    tword convert(int64_t i); // Converts signed ints to 80bit float
+
     void add(tword& a, tword &b, bool subtract = false);
 
 public:
@@ -30,6 +32,10 @@ public:
     virtual void fld(qword f)  { PUSH(); ST(0) = expand(f); };
     virtual void fld(dword f)  { PUSH(); ST(0) = expand(f);  };
     virtual void fld(int st)   { PUSH(); ST(0) = ST(st); };
+
+    virtual void fild(int16_t i) { PUSH(); ST(0) = convert(int64_t(i)); };
+    virtual void fild(int32_t i) { PUSH(); ST(0) = convert(int64_t(i)); };
+    virtual void fild(int64_t i) { PUSH(); ST(0) = convert(int64_t(i)); };
 
     void fadd()  { fadd(1);  }
     void faddp() { faddp(1); }

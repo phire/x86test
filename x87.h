@@ -24,6 +24,10 @@ public:
     virtual void fld(dword f) = 0;
     virtual void fld(int st)  = 0;
 
+    virtual void fild(int16_t i) = 0;
+    virtual void fild(int32_t i) = 0;
+    virtual void fild(int64_t i) = 0;
+
     virtual tword fstp_t() = 0;
     virtual qword fstp_l() = 0;
     virtual dword fstp_s() = 0;
